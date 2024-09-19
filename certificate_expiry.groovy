@@ -5,7 +5,7 @@ import groovy.json.JsonOutput
 // Configuration
 def emailRecipients = ['kr8856264@gmail.com']
 def daysBeforeExpiryAlert = 10
-def csvFilePath = 'certificates.csv'
+def csvFilePath = 'https://github.com/RaviReadsCode/certificate_expiry_reminder/blob/test/certificates.csv'
 def currentDate = new Date()
 
 // Helper function to send email
