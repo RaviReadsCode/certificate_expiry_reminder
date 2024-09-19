@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# certificate_expiry_reminder
-=======
 # Certificate Expiry Reminder
 
 ---
@@ -71,4 +68,3 @@ H 0 * * *
 Ensure your certificates never expire without notice with this simple and effective Jenkins-based solution.
 
 ---
->>>>>>> d01fefa (Initial Commit)
