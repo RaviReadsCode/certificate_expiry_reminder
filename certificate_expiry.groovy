@@ -1,49 +1,43 @@
-import java.text.SimpleDateFormat
-import java.util.Date
-import groovy.json.JsonOutput
-
-// Configuration
-def emailRecipients = ['kr8856264@gmail.com']
-def daysBeforeExpiryAlert = 10
-def csvFilePath = 'https://github.com/RaviReadsCode/certificate_expiry_reminder/blob/test/certificates.csv'
-def currentDate = new Date()
-
-// Helper function to send email
-def sendEmail(recipients, subject, body) {
-    def mailCommand = "echo '${body}' | mail -s '${subject}' ${recipients.join(' ')}"
-    println "Sending email: ${mailCommand}"
-    mailCommand.execute()
-}
-
-// Function to check expiry and send alerts
-def checkExpiryAndAlert() {
-    def csvFile = new File(csvFilePath)
-    if (!csvFile.exists()) {
-        println "CSV file not found!"
-        return
+pipeline {
+    agent any
+    environment {
+        EMAIL_LIST = 'kr8856264@gmail.com'
+        ALERT_DAYS_BEFORE = 10 // Days before expiry to trigger an alert
     }
+    stages {
+        stage('Check SSL Expiry') {
+            steps {
+                script {
+                    def csvFile = readFile('certificates.csv')
+                    def currentDate = new Date()
 
-    def lines = csvFile.readLines()
-    def header = lines[0].split(',')
-    def urlIndex = header.indexOf('URL')
-    def expiryIndex = header.indexOf('ExpiryDate')
+                    // Process each line of the CSV file
+                    csvFile.splitEachLine(',') { fields ->
+                        if (fields.size() >= 2) { // Ensure there are at least 2 columns
+                            def url = fields[0].trim()
+                            def expiryDateStr = fields[1].trim()
+                            try {
+                                def expiryDate = Date.parse('yyyy-MM-dd', expiryDateStr)
+                                def alertDate = expiryDate - ALERT_DAYS_BEFORE
 
-    lines[1..-1].each { line ->
-        def cols = line.split(',')
-        def url = cols[urlIndex]
-        def expiryDateStr = cols[expiryIndex]
-
-        def sdf = new SimpleDateFormat("yyyy-MM-dd")
-        def expiryDate = sdf.parse(expiryDateStr)
-        def diffInMilliseconds = expiryDate.time - currentDate.time
-        def daysUntilExpiry = diffInMilliseconds / (1000 * 60 * 60 * 24)
-
-        if (daysUntilExpiry <= daysBeforeExpiryAlert) {
-            def subject = "SSL Certificate Expiry Alert for ${url}"
-            def body = "The SSL certificate for ${url} is expiring in ${daysUntilExpiry} days on ${expiryDateStr}. Please renew it soon."
-            sendEmail(emailRecipients, subject, body)
+                                if (currentDate >= alertDate && currentDate < expiryDate) {
+                                    sendEmailAlert(url, expiryDate)
+                                }
+                            } catch (Exception e) {
+                                echo "Error processing date for URL ${url}: ${e.message}"
+                            }
+                        } else {
+                            echo "Invalid format in CSV file: ${fields}"
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-checkExpiryAndAlert()
+def sendEmailAlert(String url, Date expiryDate) {
+    emailext subject: "SSL Certificate Expiry Alert for ${url}",
+             body: "The SSL certificate for ${url} is expiring on ${expiryDate}. Please renew it before the expiry date.",
+             to: env.EMAIL_LIST
+}
